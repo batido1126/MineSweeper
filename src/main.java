@@ -1,9 +1,14 @@
 import javax.swing.*;
+
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.Scanner;
 
 public class main {
-	static JFrame frame = new JFrame();
+	static JFrame frame = new JFrame("踩地雷");
 	static JPanel panel = new JPanel();
 	static JButton btns[][];
 	static JButton restart = new JButton("Restart");
@@ -18,24 +23,50 @@ public class main {
 	static JMenuBar menubar = new JMenuBar();
 
 	static JMenu menu_game = new JMenu("遊戲");
-	static JMenuItem menuitem_Rule = new JMenuItem("操作與規則");
-	static JMenuItem menuitem_Restart = new JMenuItem("重新開始");
-
 	static JMenu menu_gamesize = new JMenu("長寬");
+	static JMenu menu_difficult = new JMenu("難度");
+	static JMenu menu_score = new JMenu("分數");
+
+	static JMenuItem menuitem_Restart = new JMenuItem("重新開始");
+	static JMenuItem menuitem_Rule = new JMenuItem("操作與規則");
 	static JMenuItem menuitem_9x9 = new JMenuItem("9x9");
 	static JMenuItem menuitem_12x12 = new JMenuItem("12x12");
 	static JMenuItem menuitem_15x15 = new JMenuItem("15x15");
 	static JMenuItem menuitem_18x18 = new JMenuItem("18x18");
-
-	static JMenu menu_difficult = new JMenu("難度");
 	static JMenuItem menuitem_Easy = new JMenuItem("簡單");
 	static JMenuItem menuitem_Medium = new JMenuItem("中等");
 	static JMenuItem menuitem_Hard = new JMenuItem("困難");
+	static JMenuItem menuitem_Scoreboard = new JMenuItem("遊玩紀錄");
 
 	static MouseListener listener_ActLis = new ActLis();
 	static ActionListener listener_menuGame = new MenuActionListenerGame();
 	static ActionListener listener_menuGamesize = new MenuActionListenerGamesize();
 	static ActionListener listener_menuDifficult = new MenuActionListenerDifficult();
+	static ActionListener listener_menuScore = new MenuActionListenerScore();
+
+	/* Thread time */
+	static MultiThread t2;
+	static int time = 0;
+	static int finaltime = 0;
+
+	/* Text about time */
+	static JLabel label = new JLabel("");
+
+	/* 操作與規則 */
+	static JDialog dialogRule = new JDialog(frame);
+	static JTextArea txa = new JTextArea(
+			"\n左鍵：點開格子\n右鍵：標記地雷\n\n規則如下：\n\n點擊格子\n顯示數字就是周圍八格可能隱藏的地雷數\n想辦法找出所有的地雷吧！");
+
+	/* 獲勝 */
+	static JDialog dialogWin = new JDialog(frame);
+	static JPanel panel2 = new JPanel();
+	static JTextField txf = new JTextField(10);
+	static JButton btnOK = new JButton("確定");
+	static OK ok = new OK();
+
+	/* 排行榜 */
+	static JDialog dialogScore = new JDialog(frame);
+	static JTextArea txaScore = new JTextArea();
 
 	public static void main(String args[]) {
 		initFrame();
@@ -45,12 +76,15 @@ public class main {
 	public static void initFrame() {
 		frame.setJMenuBar(menubar);
 		menubar.add(menu_game);
+		menubar.add(menu_gamesize);
+		menubar.add(menu_difficult);
+		menubar.add(menu_score);
+
 		menu_game.add(menuitem_Rule);
 		menu_game.add(menuitem_Restart);
 		menuitem_Rule.addActionListener(listener_menuGame);
 		menuitem_Restart.addActionListener(listener_menuGame);
 
-		menubar.add(menu_gamesize);
 		menu_gamesize.add(menuitem_9x9);
 		menu_gamesize.add(menuitem_12x12);
 		menu_gamesize.add(menuitem_15x15);
@@ -60,7 +94,6 @@ public class main {
 		menuitem_15x15.addActionListener(listener_menuGamesize);
 		menuitem_18x18.addActionListener(listener_menuGamesize);
 
-		menubar.add(menu_difficult);
 		menu_difficult.add(menuitem_Easy);
 		menu_difficult.add(menuitem_Medium);
 		menu_difficult.add(menuitem_Hard);
@@ -68,11 +101,48 @@ public class main {
 		menuitem_Medium.addActionListener(listener_menuDifficult);
 		menuitem_Hard.addActionListener(listener_menuDifficult);
 
-		frame.setLayout(new GridBagLayout());
+		menu_score.add(menuitem_Scoreboard);
+		menuitem_Scoreboard.addActionListener(listener_menuScore);
+
+		GridBagLayout layout = new GridBagLayout();
+		frame.setLayout(layout);
 		frame.setSize(row * 50, col * 50);
 		frame.setResizable(false);
 		frame.setLocationRelativeTo(null);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		/* 操作與規則 */
+		txa.setBackground(SystemColor.control);
+		txa.setFont(new Font("微軟正黑體", Font.PLAIN, 15));
+		dialogRule.setSize(300, 300);
+		dialogRule.setLocationRelativeTo(null);
+		dialogRule.add(txa);
+		dialogRule.setTitle("規則說明");
+
+		/* 獲勝 */
+		dialogWin.setTitle("恭喜！請輸入姓名");
+		dialogWin.setSize(250, 100);
+		dialogWin.setLocationRelativeTo(null);
+		dialogWin.add(panel2);
+		panel2.add(txf);
+		panel2.add(btnOK);
+		txf.setHorizontalAlignment(JTextField.CENTER);
+		btnOK.addActionListener(ok);
+
+		/* 排行榜 */
+		dialogScore.setTitle("排行榜");
+		dialogScore.setSize(500, 750);
+		dialogScore.setLocationRelativeTo(null);
+		dialogScore.add(txaScore, BorderLayout.NORTH);
+		txaScore.setBackground(SystemColor.control);
+		txaScore.setFont(new Font("微軟正黑體", Font.PLAIN, 20));
+
+		/* 時間label */
+		GridBagConstraints gbc = new GridBagConstraints();
+		gbc.gridx = 0;
+		gbc.gridy = 1;
+		layout.setConstraints(label, gbc);
+		frame.add(label);
 
 		frame.setVisible(true);
 	}
@@ -105,8 +175,9 @@ public class main {
 	/*
 	 * Basic setting.
 	 * 
-	 * It's Initialize the data array to memory the location(edge=-2,unclicked=-1).
-	 * It's Initialize the mark array to memory the mark location.
+	 * It's Initialize the data array to memory the
+	 * location(edge=-2,unclicked=-1). It's Initialize the mark array to memory
+	 * the mark location.
 	 */
 	public static void setScenery() {
 		int datatemp[][] = new int[row + 2][col + 2];
@@ -143,7 +214,9 @@ public class main {
 			x = (int) (Math.random() * row) + 1;
 			y = (int) (Math.random() * col) + 1;
 
-			if (data[x][y] != 99 && !(x >= click_x - 1 && x <= click_x + 1 && y >= click_y - 1 && y <= click_y + 1)) {
+			if (data[x][y] != 99
+					&& !(x >= click_x - 1 && x <= click_x + 1
+							&& y >= click_y - 1 && y <= click_y + 1)) {
 				data[x][y] = 99;
 				count++;
 			}
@@ -162,7 +235,8 @@ public class main {
 				} else if (data[i][j] == -1 || data[i][j] == 99) {
 					btns[i][j].setIcon(new ImageIcon("img/unclicked.png"));
 				} else {
-					btns[i][j].setIcon(new ImageIcon("img/" + data[i][j] + ".png"));
+					btns[i][j].setIcon(new ImageIcon("img/" + data[i][j]
+							+ ".png"));
 				}
 			}
 		}
@@ -200,11 +274,6 @@ public class main {
 		}
 	}
 
-	public static void winJudge() {
-
-	}
-
-	// Game over.
 	public static void gameOver() {
 		for (int i = 1; i <= row; i++) {
 			for (int j = 1; j <= col; j++) {
@@ -223,6 +292,25 @@ public class main {
 					btns[i][j].setIcon(new ImageIcon("img/" + no + ".png"));
 				}
 			}
+		}
+
+		t2.interrupt();
+	}
+
+	public static void winJudge() {
+		boolean flag = true;
+
+		for (int i = 1; i <= row; i++) {
+			for (int j = 1; j <= col; j++) {
+				if (data[i][j] == -1) {
+					flag = false;
+				}
+			}
+		}
+
+		if (flag) {
+			gameOver();
+			dialogWin.setVisible(true);
 		}
 	}
 
@@ -286,6 +374,28 @@ public class main {
 		System.out.println();
 	}
 
+	static class MultiThread extends Thread {
+		MultiThread(String name) {
+			super(name);
+		}
+
+		public void run() {
+			if (getName().equals("thread 2")) {
+				while (true) {
+					try {
+						Thread.sleep(1000);
+						time++;
+						label.setText("時間：" + time);
+					} catch (InterruptedException e) {
+						finaltime = time;
+						time = 0;
+						break;
+					}
+				}
+			}
+		}
+	}
+
 	// 監聽器(左鍵:踩下一個區域 右鍵:標記地雷)
 	static class ActLis implements MouseListener {
 
@@ -319,6 +429,8 @@ public class main {
 			if (click == MouseEvent.BUTTON1) { // 判斷是滑鼠左鍵按下
 				if (first_step) {
 					setBombs(x, y);
+					t2 = new MultiThread("thread 2");
+					t2.start();
 					stepOnEmptyArea(x, y);
 					refreshTheButtonOfGamePanel();
 					first_step = false;
@@ -326,10 +438,12 @@ public class main {
 					if (data[x][y] == -1) {
 						stepOnEmptyArea(x, y);
 						refreshTheButtonOfGamePanel();
+						winJudge();
 					} else if (data[x][y] == 99) {
 						gameOver();
 					}
 				}
+
 			}
 
 			if (click == MouseEvent.BUTTON3) {// 判斷是滑鼠右鍵按下
@@ -355,8 +469,11 @@ public class main {
 				frame.setSize(row * 50, col * 50);
 				frame.setLocationRelativeTo(null);
 				panel.removeAll();
-
+				label.setText("時間：" + time);
 				initGame();
+			} else if (select.equals("操作與規則")) {
+				dialogRule.setModal(true); /* dialog完成才可以回到frame */
+				dialogRule.setVisible(true);/* 顯示dialog */
 			}
 		}
 	}
@@ -377,12 +494,81 @@ public class main {
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			String select = e.getActionCommand();
+
 			if (select.equals("簡單")) {
 				density = difficult[0];
 			} else if (select.equals("中等")) {
 				density = difficult[1];
 			} else if (select.equals("困難")) {
 				density = difficult[2];
+			}
+		}
+	}
+
+	static class MenuActionListenerScore implements ActionListener {
+
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			String select = e.getActionCommand();
+
+			if (select.equals("遊玩紀錄")) {
+				String uri = "data/final.txt";
+				File file = new File(uri);
+
+				if (!file.exists()) {
+					try {
+						file.createNewFile();
+					} catch (IOException e1) {
+						e1.printStackTrace();
+					}
+				}
+
+				try {
+					String str = "";
+					Scanner reader = new Scanner(file);
+					while (reader.hasNext()) {
+						str += reader.nextLine() + "\n";
+					}
+					txaScore.setText(str);
+					dialogScore.setVisible(true);
+				} catch (IOException ioe) {
+					ioe.printStackTrace();
+				}
+			}
+		}
+	}
+
+	/* 存檔 JDialog press OK */
+	static class OK implements ActionListener {
+
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			String uri = "data/final.txt";
+			File file = new File(uri);
+
+			if (!file.exists()) {
+				try {
+					file.createNewFile();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+			}
+
+			try {
+				String str = "";
+				Scanner reader = new Scanner(file);
+				while (reader.hasNext()) {
+					str += reader.nextLine() + "\n";
+				}
+				PrintWriter out = new PrintWriter(file);
+				str += txf.getText() + "：" + finaltime + "秒\n";
+				out.println(str);
+				txf.setText("");
+				out.close();
+				dialogWin.setVisible(false);
+				System.out.println("存檔成功！");
+			} catch (IOException ioe) {
+				ioe.printStackTrace();
 			}
 		}
 	}
