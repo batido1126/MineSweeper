@@ -509,7 +509,7 @@ public class main {
 			if (select.equals("¹Cª±¬ö¿ý")) {
 				String uri = "data/final.txt";
 				File file = new File(uri);
-				
+
 				if (!file.exists()) {
 					try {
 						file.getParentFile().mkdirs();
