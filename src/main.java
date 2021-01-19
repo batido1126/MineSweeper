@@ -54,8 +54,7 @@ public class main {
 
 	/* 操作與規則 */
 	static JDialog dialogRule = new JDialog(frame);
-	static JTextArea txa = new JTextArea(
-			"\n左鍵：點開格子\n右鍵：標記地雷\n\n規則如下：\n\n點擊格子\n顯示數字就是周圍八格可能隱藏的地雷數\n想辦法找出所有的地雷吧！");
+	static JTextArea txa = new JTextArea("\n左鍵：點開格子\n右鍵：標記地雷\n\n規則如下：\n\n點擊格子\n顯示數字就是周圍八格可能隱藏的地雷數\n想辦法找出所有的地雷吧！");
 
 	/* 獲勝 */
 	static JDialog dialogWin = new JDialog(frame);
@@ -175,9 +174,8 @@ public class main {
 	/*
 	 * Basic setting.
 	 * 
-	 * It's Initialize the data array to memory the
-	 * location(edge=-2,unclicked=-1). It's Initialize the mark array to memory
-	 * the mark location.
+	 * It's Initialize the data array to memory the location(edge=-2,unclicked=-1).
+	 * It's Initialize the mark array to memory the mark location.
 	 */
 	public static void setScenery() {
 		int datatemp[][] = new int[row + 2][col + 2];
@@ -214,9 +212,7 @@ public class main {
 			x = (int) (Math.random() * row) + 1;
 			y = (int) (Math.random() * col) + 1;
 
-			if (data[x][y] != 99
-					&& !(x >= click_x - 1 && x <= click_x + 1
-							&& y >= click_y - 1 && y <= click_y + 1)) {
+			if (data[x][y] != 99 && !(x >= click_x - 1 && x <= click_x + 1 && y >= click_y - 1 && y <= click_y + 1)) {
 				data[x][y] = 99;
 				count++;
 			}
@@ -235,8 +231,7 @@ public class main {
 				} else if (data[i][j] == -1 || data[i][j] == 99) {
 					btns[i][j].setIcon(new ImageIcon("img/unclicked.png"));
 				} else {
-					btns[i][j].setIcon(new ImageIcon("img/" + data[i][j]
-							+ ".png"));
+					btns[i][j].setIcon(new ImageIcon("img/" + data[i][j] + ".png"));
 				}
 			}
 		}
@@ -514,9 +509,10 @@ public class main {
 			if (select.equals("遊玩紀錄")) {
 				String uri = "data/final.txt";
 				File file = new File(uri);
-
+				
 				if (!file.exists()) {
 					try {
+						file.getParentFile().mkdirs();
 						file.createNewFile();
 					} catch (IOException e1) {
 						e1.printStackTrace();
@@ -548,6 +544,7 @@ public class main {
 
 			if (!file.exists()) {
 				try {
+					file.getParentFile().mkdirs();
 					file.createNewFile();
 				} catch (IOException e1) {
 					e1.printStackTrace();
